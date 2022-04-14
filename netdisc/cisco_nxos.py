@@ -1,18 +1,24 @@
+import re
 from ipaddress import IPv4Interface
-from json import loads
+from loguru import logger
 
-from common import ipv4_model
+from .network import NetworkSchema
+from .common import ipv4_model
 
-
-def get_vlans(connection, datacenter):
+def get_nxos_vlans(connection, datacenter) -> list[NetworkSchema]:
+    vlan_command = 'show vlan brief'
+    logger.trace(f"Running command '{vlan_command}' on {connection.host}")
+    vlan_data_raw = connection.send_command(vlan_command)
+    vlan_lines = vlan_data_raw.split('\n')
     vlan_data = []
-    vlan_data_json = loads(connection.send_command("show vlan | json-pretty"))
-    parsed_vlans = vlan_data_json["TABLE_vlanbrief"]["ROW_vlanbrief"]
-    for vlan in parsed_vlans:
+
+    for line in vlan_lines:
+        vlan = re.search("^(\d{1,4})\s+(\S+)", line)
+        if not vlan: continue
         vlan_data.append(
             {
-                "vlan": vlan["vlanshowbr-vlanid"],
-                "description": vlan["vlanshowbr-vlanname"],
+                "vlan": int(vlan.group(1)),
+                "description": vlan.group(2),
                 "datacenter": datacenter,
                 "origin_device": connection.host,
                 "network": "",
@@ -27,26 +33,21 @@ def get_vlans(connection, datacenter):
         )
     return vlan_data
 
-
-def get_networks(connection, datacenter):
+def get_nxos_networks(connection, datacenter) -> list[NetworkSchema]:
+    vlans = get_nxos_vlans(connection, datacenter)
+    logger.trace(f"Collected {len(vlans)} vlans from {connection.host}")
+    network_command = 'show ip int vrf all'
+    logger.trace(f"Running command '{network_command}' on {connection.host}")
+    ip_data_raw = connection.send_command(network_command)
     final_network_data = []
-    vlans = get_vlans(connection, datacenter)
     for vlan in vlans:
-        ip_data = loads(
-            connection.send_command(f"show ip int vlan {vlan['vlan']} | json-pretty")
-        )
-        parsed_keys = {
-            key.replace("-", "_"): value
-            for key, value in ip_data["TABLE_intf"]["ROW_intf"].items()
-        }
-        if parsed_keys["ip_disabled"] == "TRUE":
-            continue
-        if not "prefix" in parsed_keys:
-            final_network_data.append(vlan)
-            continue
-        ipv4_interface = IPv4Interface(
-            f"{parsed_keys['prefix']}/{parsed_keys['masklen']}"
-        )
-        vlan.update(ipv4_model(ipv4_interface))
+        net_match = re.search(rf'^Vlan{vlan["vlan"]},.+\n.+?address: (\S+),.+?subnet: (\S+)', ip_data_raw, re.MULTILINE)
+        if not net_match: continue
+        ip_interface = IPv4Interface(net_match.group(1))
+        ip_network = IPv4Interface(net_match.group(2))
+        vlan.update(ipv4_model(ip_network))
+        if int(ip_interface) == int(ip_network) + 1:
+            vlan['gateway'] = net_match.group(1)
         final_network_data.append(vlan)
+    logger.trace(f"Collected {len(final_network_data)} networks from {connection.host}")
     return final_network_data

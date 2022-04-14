@@ -1,6 +1,5 @@
 from pydantic import BaseModel
 
-
 class NetworkSchema(BaseModel):
     id: str = None
     datacenter: str = ""

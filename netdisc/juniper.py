@@ -1,14 +1,15 @@
 import re
 from ipaddress import IPv4Interface
+from loguru import logger
 
-from network import NetworkSchema
-from common import ipv4_model
+from .network import NetworkSchema
+from .common import ipv4_model
 
 
-def get_vlans(connection, datacenter) -> list[NetworkSchema]:
-    vlan_data_raw = connection.send_command(
-        "show configuration vlans | display set | match description"
-    )
+def get_juniper_vlans(connection, datacenter) -> list[NetworkSchema]:
+    vlan_command = "show configuration vlans | display set | match description"
+    logger.trace(f"Running command '{vlan_command}' on {connection.host}")
+    vlan_data_raw = connection.send_command(vlan_command)
     vlan_lines = vlan_data_raw.split("\n")
     vlan_data = []
 
@@ -37,9 +38,12 @@ def get_vlans(connection, datacenter) -> list[NetworkSchema]:
     return vlan_data
 
 
-def get_networks(connection, datacenter) -> list[NetworkSchema]:
-    vlans = get_vlans(connection, datacenter)
-    ip_data_raw = connection.send_command("show interfaces terse")
+def get_juniper_networks(connection, datacenter) -> list[NetworkSchema]:
+    vlans = get_juniper_vlans(connection, datacenter)
+    logger.trace(f"Collected {len(vlans)} vlans from {connection.host}")
+    network_command = "show interfaces terse"
+    logger.trace(f"Running command '{network_command}' on {connection.host}")
+    ip_data_raw = connection.send_command(network_command)
     ip_lines = ip_data_raw.split("\n")
     final_network_data = []
     re_search = "(?:vlan|irb)\.([0-9]{1,4})\s"
@@ -61,5 +65,5 @@ def get_networks(connection, datacenter) -> list[NetworkSchema]:
             network_match = network_match[0]
             vlan.update(ipv4_model(network_match["obj"]))
         final_network_data.append(vlan)
-
+    logger.trace(f"Collected {len(final_network_data)} networks from {connection.host}")
     return final_network_data
