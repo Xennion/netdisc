@@ -4,10 +4,10 @@ name: CI
 
 # Controls when the workflow will run
 on:
-  # Triggers the workflow on push or pull request events but only for the main branch
+  # Triggers the workflow on push events but only for the main branch
   push:
-    branches: [ main ]
-  pull_request:
+    tags:
+      -'*.*.*'
     branches: [ main ]
 
   # Allows you to run this workflow manually from the Actions tab
@@ -32,5 +32,7 @@ jobs:
         run: echo "${HOME}/.poetry/bin" >> $GITHUB_PATH
       - name: Install venv
         run: poetry install
-      - name: Build and Publish
-        run: poetry publish --build -u ${{ secrets.PYPI_USER }} -p ${{ secrets.PYPI_PASS }}
+      - run: poetry config repositories.testpypi https://test.pypi.org/netdisc/
+      - run: poetry config pypi-token.testpypi ${{ secrets.TEST_PYPI_PASS }}
+      - name: Publish package
+        run: poetry publish --build -r testpypi
