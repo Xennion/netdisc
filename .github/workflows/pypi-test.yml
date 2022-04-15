@@ -33,6 +33,6 @@ jobs:
       - name: Install venv
         run: poetry install
       - run: poetry config repositories.testpypi https://test.pypi.org/netdisc/
-      - run: poetry config pypi-token.testpypi ${{ secrets.TEST_PYPI_PASS }}
+      - run: poetry config pypi-token.testpypi ${{ secrets.PYPI_TEST_PASS }}
       - name: Publish package
         run: poetry publish --build -r testpypi
