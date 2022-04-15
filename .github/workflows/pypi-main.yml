@@ -21,7 +21,12 @@ jobs:
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Setup Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.6'
 
       # Runs a single command using the runners shell
       - name: Install Poetry
@@ -30,6 +35,7 @@ jobs:
         run: echo "${HOME}/.poetry/bin" >> $GITHUB_PATH
       - name: Install venv
         run: poetry install
+      - name: Configure PyPi token
       - run: poetry config pypi-token.testpypi ${{ secrets.PYPI_PASS }}
       - name: Publish package
-        run: poetry publish --build
+          run: poetry publish --build
