@@ -35,7 +35,5 @@ jobs:
         run: echo "${HOME}/.poetry/bin" >> $GITHUB_PATH
       - name: Install venv
         run: poetry install
-      - name: Configure PyPi token
-        run: poetry config pypi-token.testpypi ${{ secrets.PYPI_PASS }}
       - name: Publish package
-        run: poetry publish --build
+        run: poetry publish --build -u ${{ secrets.PYPI_USER }} -p ${{ secrets.PYPI_PASS }}
