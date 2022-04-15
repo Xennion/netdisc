@@ -38,4 +38,4 @@ jobs:
       - name: Configure PyPi token
       - run: poetry config pypi-token.testpypi ${{ secrets.PYPI_PASS }}
       - name: Publish package
-          run: poetry publish --build
+        run: poetry publish --build
