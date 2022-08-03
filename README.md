@@ -1,3 +1,3 @@
 # netdisc
 
-App for discovering collecting network information from your network devices
+library for collecting standardized network data from your network device vendors
